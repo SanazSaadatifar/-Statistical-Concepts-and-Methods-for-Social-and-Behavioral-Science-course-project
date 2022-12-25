@@ -1,0 +1,173 @@
+
+---
+title: "Lab 8 - Inference for numerical data"
+author: "Sanaz Saadatifar"
+date: "3/23"
+output: 
+  html_document: 
+    highlight: tango
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+* * *
+
+## Lab report
+
+**Load data**
+```{r load-data}
+acs <- read_csv("https://dyurovsky.github.io/85309/data/lab8/acs.csv")
+```
+
+#### Set a seed
+```{r set-seed}
+
+```
+
+#### Exercise 1: 
+```{r}
+acs_emp <- acs %>%
+  filter(employment == "employed")
+
+employed_prop <- nrow(acs_emp)/nrow(acs)
+employed_prop
+```
+42.15 percent of population are employed.
+
+#### Exercise 2: 
+```{r}
+ggplot(acs_emp, aes(x = gender, y = income)) + 
+  geom_boxplot()
+
+
+acs_emp %>%
+  group_by(gender) %>%
+  summarise(xbar = mean(income),
+            s = sd(income), 
+            n = n())
+```
+The mean salary of men appears to be higher. So is the standard deviation of their salaries. It looks like maybe there are more outlier in the group of men than women as well, which could be having a large effect on the mean.  
+
+#### Exercise 3: 
+```{r}
+acs_emp_female <- acs_emp %>%
+  filter(gender == "female")
+
+acs_emp_male <- acs_emp %>%
+  filter(gender == "male")
+
+t.test(acs_emp_male$income, acs_emp_female$income)
+t.test(income~gender, data = acs_emp)
+```
+the 95% confidence interval for the difference between men’s and women’s salaries is (19615.96, 33671.11)
+
+#### Exercise 4: 
+
+Because this confidence interval does not include 0, we should reject the null hypothesis that men and women make the same income on average. 
+
+#### Exercise 5: 
+```{r}
+ggplot(acs_emp, aes(x = hrs_work)) +
+  geom_histogram(binwidth = 10)
+```
+
+We see a distribution centered around 40 hr/week with tails on both sides. Almost everybody seems to work around 40 hrs/week but there are people who work both more hours and people who work fewer hours  who might be part-time employees.  
+
+#### Exercise 6:
+```{r}
+t.test(acs_emp$hrs_work, mu=40)
+
+```
+H0: the sample comes from a population with a mean of 40
+HA: the sample comes from a population with a mean that is not 40
+
+Because the P-value is less than 0.05, we reject the null hypothesis that the sample comes from a population with a mean of 40. So we might have a mixture of full-time and not full-time employees. 
+
+
+#### Exercise 7:
+```{r}
+acs_type <- acs_emp %>%
+  mutate(emp_type = if_else(hrs_work >= 40, "full time", "part time"))
+
+acs_type %>%
+  group_by(emp_type) %>%
+  summarise(total_type = n()) %>%
+  ungroup() %>%
+  mutate(prop_type = total_type/sum(total_type))
+
+ggplot(acs_type, aes(x = emp_type)) +
+  geom_bar()
+```
+70.6% of the sample is full time and 29.3% of the sample is part-time.
+
+#### Exercise 8: 
+```{r}
+acs_type %>%
+  group_by(emp_type, gender) %>%
+  summarise(n = n()) %>%
+  group_by(gender)%>%
+  mutate(prop=n/sum(n))
+
+
+#ggplot(acs_type, aes(x = emp_type, fill = gender)) +
+#  geom_bar()
+
+
+ggplot(acs_type, aes(x = gender, fill = emp_type)) +
+  geom_bar(position = "dodge")
+```
+women are more heavily represented among part time employees
+
+### More Practice
+
+#### Exercise 9:
+```{r}
+acs_emp_full_time <- acs_type %>%
+  filter(emp_type == "full time")
+
+acs_emp_part_time <- acs_type %>%
+  filter(emp_type == "part time")
+```
+
+
+#### Exercise 10:
+```{r}
+t.test(income~gender, data = acs_emp_full_time)
+```
+H0: there is no difference in average incomes of full time male and female employees
+HA: there is a difference in average incomes of full time male and female employees
+
+We can reject the null hypothesis because the P-value is less than 0.05. and the confidence interval is (-31825.72, -15037.15) which does not include 0. 
+
+
+#### Exercise 11:
+```{r}
+t.test(income~gender, data = acs_emp_part_time)
+```
+H0: there is no difference in average incomes of part time male and female employees
+HA: there is a difference in average incomes of part time male and female employees
+
+We do not have enough evidence to reject the null hypothesis because the P-value is greater than 0.05. and the confidence interval is (-21264.16 ,  4239.58) which includes 0. 
+
+
+#### Exercise 12:
+
+Working full-time/part-time can be a confounding variable in the relationship between gender and income, because men and women who are full-time employees had the difference between their income, but when they were both part-time employees, the difference between their income was not clear or at least we did not have enough evidence to prove that difference. 
+
+#### Exercise 13:
+```{r}
+t.test(age~citizen, data = acs_emp)
+```
+
+I want to know whether there is a difference between the average age of the employed citizens vs employed not-citizens
+H0: there is no difference between  the mean of the age of the employed citizens and the mean of the age of the employed not-citizens
+HA: there is difference between  the mean of the age of the employed citizens and the mean of the age of the employed not-citizens
+Numerical : age
+Categorial: citizenship of employed people
+
+We can reject the null hypothesis because the P-value is less than 0.05. and the confidence interval is (-11.006609,  -3.668227) which does not includes 0. Considering the means of ages in both groups we can see that no-citizen group are younger than citizen group. 
