@@ -1,0 +1,121 @@
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+* * *
+
+## Lab report
+
+**Load data**
+```{r load_data}
+nycflights <- read_csv("https://dyurovsky.github.io/85309/data/lab2/nycflights.csv")
+
+```
+
+#### Exercise 1: 
+In the binwidth of 15 plots, you can see that some of the flights leave early, and you can see more of the details of the distribution. In the binwidth of 150 plots, almost all of the flights end up in one bin, which maybe doesn't provide enough detail to get a sense for how they're distributed. The default plot is in between.
+```{r}
+# enter your code for Exercise 1 here
+ggplot(nycflights, aes(x = dep_delay)) + 
+  geom_histogram()
+
+ggplot(nycflights, aes(x = dep_delay)) + 
+  geom_histogram(binwidth = 15)
+
+ggplot(nycflights, aes(x = dep_delay)) + 
+  geom_histogram(binwidth = 150)
+
+```
+
+#### Exercise 2:
+68 flights have headed to SFO in February.
+```{r}
+# enter your code for Exercise 2 here
+sfo_feb_flights <- nycflights %>%
+  filter(dest == "SFO", month == 2)
+nrow(sfo_feb_flights)
+```
+
+#### Exercise 3:
+The histogram shows a right-skewed distribution, because of this skewness, the median and IQR would be appropriate to use. 
+```{r}
+# enter your code for Exercise 3 here
+ggplot(sfo_feb_flights, aes(x = arr_delay)) + 
+  geom_histogram(binwidth = 15)  
+sfo_feb_flights %>%
+  summarise(median = median(arr_delay), 
+            iqr = IQR(arr_delay))
+```
+
+#### Exercise 4:
+IQR is a measure of variability. DL and UA have the most variable delays because they have the largest IQRs. we should care IQR not median, because the flight departure has more unpredictability.
+```{r}
+# enter your code for Exercise 4 here
+sfo_feb_flights %>%
+  group_by(carrier) %>%
+  summarise(median_ad = median(arr_delay), 
+            iqr_ad = IQR(arr_delay), 
+            n_flights = n())
+```
+
+#### Exercise 5:
+The mean of a distribution will be affected more by values in the tails. That means that the mean of arrival day will have information about extreme delay values whereas the median will not. If you want to make sure you don't have a REALLY long delay, you should use the mean. But if you want to minimize the "typical" delay, you should use the median.so, if you care a lot about delays maybe you need to use mean not median. 
+```{r}
+# enter your code for Exercise 5 here
+nycflights %>%
+  group_by(month) %>%
+  summarise(mean_dd = mean(dep_delay)) %>%
+  arrange(desc(mean_dd))
+```
+
+#### Exercise 6:
+I would select LGA because it has the highest on time departure percentage.
+```{r}
+# enter your code for Exercise 6 here
+nycflights <- nycflights %>%
+  mutate(dep_type = if_else(dep_delay < 5, "on time", "delayed"))
+
+nycflights %>%
+  group_by(origin) %>%
+  summarise(ot_dep_perc = (sum(dep_type == "on time") / n()) * 100) %>%
+  arrange(desc(ot_dep_perc))
+```
+
+* * *
+```{r}
+nycflights %>%
+  group_by(origin) %>%
+  summarise(dep_num = n()) %>%
+  arrange(desc(dep_num))
+```
+
+### More practice:
+
+#### Exercise 7:
+1 mile / hour = 0.0166666667 miles / minute
+```{r}
+# enter your code for Exercise 7 here
+nycflights <- nycflights %>%
+  mutate(avg_speed = distance / (air_time/60))
+```
+
+#### Exercise 8:
+There is a slightly positive relation between the distance and the average speed. The maximum average speed range is between 300-500, which for almost all of the distances above 1500 has been used. However, the variation of  average speed for the distances below 1000 is very high, from 100 to 500. 
+```{r}
+# enter your code for Exercise 8 here
+ggplot(nycflights, aes(x = avg_speed, y = distance)) +
+  geom_point()
+```
+
+#### Exercise 9:
+So the cutoff can be the time when the departure delay is about 80 (between 50 and 100). The reasoning is the importance of having the arrival delay as the zero. So considering an imaginary horizontal line on when the arr_delay is zero, we can conclude that the maximum departure delay can be about 80. 
+```{r}
+# enter your code for Exercise 9 here
+new_flights <- nycflights %>%
+  filter(carrier == "AA" | carrier == "DL" | carrier == "UA")
+
+ggplot(new_flights, aes(x = dep_delay, y = arr_delay, color = carrier)) +
+  geom_point()
+```
