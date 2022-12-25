@@ -1,0 +1,229 @@
+
+---
+title: "Lab 11 - Choosing a Model"
+author: "Sanaz Saadatifar"
+date: "4/17"
+output: 
+  html_document: 
+    highlight: tango
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+library(tidyverse)
+```
+
+* * *
+
+## Lab report
+
+**Load data**
+```{r load-data}
+data <- read_csv("https://dyurovsky.github.io/85309/data/lab11/animal_game.csv")
+```
+
+#### Exercise 1: 
+
+```{r}
+train_data <- data %>%
+  filter(subj_group == "train")
+
+train_data
+```
+
+#### Exercise 2: 
+
+```{r}
+ggplot(train_data, aes(x = length)) +
+  geom_histogram()
+```
+the distribution is right is right-skewed. this makes sense because there is a hard lower bound on number of words, you can't say fewer than 0 words.
+
+#### Exercise 3: 
+
+```{r}
+ggplot(train_data, aes(x = appearance , y = length)) +
+  geom_boxplot()
+```
+It looks like median length is above the same on 1st and 2nd appearance, but there is more mass in the left tail of the distribution on 2nd trials. parents are more likely to use particularly short sentences the second time
+
+#### Exercise 4: 
+
+H0: the average length on the first appearance is the same as the second appearance. Difference in length between first and second appearance is 0
+HA: the average length of the first appearance is different from the average length on the second appearance
+
+
+```{r}
+parent_lengths <- train_data %>%
+  group_by(subj, appearance) %>%
+  summarise(length = mean(length)) %>%
+  summarise(diff = first(length) - last(length)) %>%
+  summarise(diff = mean(diff)) %>%
+  pull(diff)
+
+
+simulate_null <- function() {
+  train_data %>%
+    group_by(subj) %>%
+    mutate(appearance = sample(appearance)) %>%
+    group_by(subj, appearance) %>%
+    summarise(length = mean(length),
+              .groups = "drop_last") %>%
+    summarise(diff = first(length) - last(length)) %>%
+    summarise(diff = mean(diff)) %>%
+    pull(diff)
+    
+}
+
+simulate_null()
+
+null_data <- tibble(id = 1:1000,
+                    diff = replicate(1000, simulate_null()))
+
+
+
+ggplot(null_data, aes(x = diff)) +
+  geom_histogram()
+
+
+
+mean(parent_lengths > pull(null_data, diff))
+
+```
+Our data is in the 98.3 percentile of the null hypothesis distribution. So we reject the null hypothesis that parents produce sentences of the same length on 1st and 2nd appearances.
+
+#### Exercise 5: 
+
+```{r}
+parent_lengths_individual <- train_data %>%
+  group_by(subj, appearance) %>%
+  summarise(length = mean(length)) 
+
+parent_lengths_individual
+
+t.test(length~appearance, data = parent_lengths_individual, paired = TRUE)
+```
+We need to use a paired T test because our parents are the natural pairing unit, they have a first and second appearance that are probably dependent on each other. We got the same result from our T test and our simulation: first appearance sentences are longer on average
+
+#### Exercise 6:
+
+```{r}
+parent_lengths2 <- train_data %>%
+  group_by(subj, appearance) %>%
+  summarise(length = mean(length),
+            .groups = "drop_last") %>%
+  pivot_wider(names_from = "appearance", values_from = "length")
+
+parent_lengths2
+
+ggplot(parent_lengths2, aes(x = first, y = second)) +
+  geom_point()
+
+
+m1 <- lm(second ~ first, data = parent_lengths2)
+summary(m1)
+
+
+ggplot(parent_lengths2, aes(x = first, y = second)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+With the linear regression method we can also get the similar result because there is a positive moderate relationship between the length of 1st and 2nd appearances the slope is positive 0.7275. the Pvalue is not exactly the same as the P value of the T test but it corresponds because the P value is small enough to reject the null hypothesis. 
+
+#### Exercise 7:
+
+```{r}
+transformed_train <- train_data %>%
+  mutate(transformed_length = log(length))
+
+
+transformed_train_individual <- transformed_train %>%
+  group_by(subj, appearance) %>%
+  summarise(transformed_length = mean(transformed_length)) 
+
+transformed_train_individual
+
+t.test(transformed_length~appearance, data = transformed_train_individual, paired = TRUE)
+```
+The P value is changed it is very smaller in the second T test with the log length data. the smaller P value is better because it shows that we can trust the model now better. the reason for this change is it transformation of the length two log length. the length itself had a right skewed distribution but the lug length probably meets the normality requirement more. 
+
+#### Exercise 8: 
+
+```{r}
+full_model <- lm(transformed_length  ~ trial + appearance + avg_known + known , data = transformed_train)
+summary(full_model)
+```
+Overall the r ^2 and adjusted r ^2 are small and other than average knowns P value, other P values are not small enough so this model is not very appropriate to make predictions. however based on the data we have average known seems to be the most relevant data to make predictions about the transformed length due to the smallest P value. in terms of relationships trial has not that strong but negative slope.
+
+#### Exercise 9:
+
+```{r}
+
+step_model <- step(full_model)
+```
+Appearance and known are deleted and trial and average known are still in the model. my first interpretation based on the previous questions result was so just have average known as a criteria to make predictions based on that. however based on the results of this question apparently trial is also important in making predictions besides average known
+
+#### Exercise 10:
+
+```{r}
+predicted_train <- transformed_train %>%
+  mutate(predicted_full = predict(full_model),
+         predicted_step = predict(step_model))
+
+predicted_train %>%
+  summarise(cor = cor(predicted_full, transformed_length )) %>%
+  pull()
+
+predicted_train %>%
+  summarise(cor = cor(predicted_step, transformed_length )) %>%
+  pull()
+```
+I expected a high correlation between the predicted step and transform length compared to the correlation of predicted full and transform length but apparently it didn't happen
+
+### More Practice
+
+
+#### Exercise 11: 
+
+```{r}
+test_data <- data %>%
+  filter(subj_group == "test")
+
+transformed_test  <- test_data %>%
+  mutate(transformed_length = log(length))
+
+predicted_test <- transformed_test %>%
+  mutate(predicted_full = predict(full_model, newdata = .),
+         predicted_step = predict(step_model, newdata = .))
+```
+
+#### Exercise 12:
+
+```{r}
+
+predicted_test %>%
+  summarise(cor = cor(predicted_full, transformed_length )) %>%
+  pull()
+
+predicted_test %>%
+  summarise(cor = cor(predicted_step, transformed_length )) %>%
+  pull()
+
+```
+Full model predicts better because it has a higher correlation compared to the step model
+
+#### Exercise 13:
+
+```{r}
+transformed_data_full  <- data %>%
+  mutate(transformed_length = log(length))
+
+
+data_full_model <- lm(transformed_length  ~ trial + appearance + avg_known + known , data = transformed_data_full)
+summary(data_full_model)
+
+
+step_model <- step(data_full_model)
+```
+Yes the result is different in the training data set trial and average known were left at the end but in the full data set trial is deleted and average known is left besides two other variables which are known and appearance. Of course the main reason is that the data set is changed, and data set got larger so we have more data to do analysis based on. And Because of the increased number of data  in the larger data set (full data), the, It is more trustable in terms of variables (known, avg-known, Appearance) that are left for predictions. 
