@@ -1,0 +1,505 @@
+
+---
+title: "Who is good at learning language?"
+author: "Sanaz Saadatifar"
+output: 
+  html_document: 
+    highlight: tango
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(GGally)
+library(ggridges) # for geom_density_ridge
+library(broom) # for tidy models
+
+theme_set(theme_classic(base_size = 12) + 
+            theme(legend.position = "none")) 
+```
+
+
+```{r load_data}
+language_data <- read_csv("language_data.csv")
+```
+* * * 
+
+### Introduction
+
+This report displays the analysis results of a survey related to how well people did in an English-test which is about the proficiency in the English language. participants or a mixture of native and nonnative English speaking people from different countries all over the world. this report focuses only on nonnative people and their test results. Therefore the three main questions mentioned below are the aim of this analysis:
+Question 1: Does living in an English-speaking country result in more proficiency In English test?
+Question 2: does the time when participants started learning English (in which decade of their life), make a difference in how well they did in the English test?
+question 3: if the answer to above questions are yes then does spending more time in an English speaking country would result in a higher score in the English test?
+In the following sections first some exploratory data analysis will be done like the distribution of the test results,  confidence intervals, hypothesis tastings and some other inferential analysis to gain insight about the whole population based on the given samples. and finally based on simple regression and multiple liberation models, a best model will be created to predict the proficiency in the English test.  
+
+
+* * *
+
+### Exploratory data analysis and ### Inference 
+
+The raw data is saved in language data, however only logit, orrect, education, gender, age, native_english, english_start, english_country_years are useful. Therefore a data cleaning process is done here. also new columns are added, such as “English_country_lived” which shows whether or not the participant had ever lived in an English speaking country, “Proportion_YearsLived_EnglishCountry” which shows how long the participant had lived in the English speaking country, and “english_start_categorical” that shows in which decade of the participants life has he or she started learning English. 
+
+```{r}
+language_data_analysis <- language_data %>%
+  select(logit, correct, education, gender, age, native_english, english_start, english_country_years)
+
+
+language_data_analysis <- language_data_analysis %>%  
+  mutate(english_country_lived = if_else(english_country_years > 0 , "Lived", "Did not live"))%>%
+  mutate(Proportion_YearsLived_EnglishCountry = english_country_years/age) %>%
+  filter(gender == "female" | gender == "male") %>%
+  filter(native_english == "FALSE")
+
+
+language_data_analysis <- language_data_analysis %>%
+  mutate(english_start_categorical = case_when(english_start < 10 ~ "First Decade", 
+                                               english_start < 20 ~ "Second Decade",
+                                               english_start < 30 ~ "Third Decade",
+                                               english_start < 40 ~ "Fourth Decade",
+                                               english_start < 50 ~ "Fifth Decade",
+                                               english_start < 60 ~ "Sixth Decade",
+                                               TRUE ~ "Seventh Decade"))
+
+
+```
+
+######
+
+As the first data exploratory analysis, there distribution off “correct” which is The proportion of questions the participant answered correctly is shown below. 
+
+```{r}
+language_data_analysis %>%
+  summarise(mu = mean(correct), 
+            med = median(correct), 
+            sigma = sd(correct), 
+            iqr = IQR(correct))
+
+
+
+ggplot(language_data_analysis, aes(x = correct)) +
+  geom_histogram(binwidth = 0.005)
+
+
+
+
+#language_data_analysis %>%
+#  group_by(english_country_lived, gender) %>%
+#  summarise(n = n()) %>%
+#  group_by(gender)%>%
+#  mutate(prop=n/sum(n))
+
+
+#ggplot(language_data_analysis, aes(x = english_country_lived)) +
+#  geom_bar(position = "dodge", show.legend=T)
+
+#ggplot(language_data_analysis, aes(x = english_country_lived, fill = gender)) +
+#  geom_bar(position = "dodge") +
+#  theme(legend.position = c(.8,.8))
+
+
+
+
+
+```
+
+the distribution left-skewed, it would be better to use median, which is 0.9368421. however based on central limit theorem (CLT), the inferential analysis should be done on a normal distribution hence logit of correct we'll be analyzed as a transformation method.
+
+#####
+```{r}
+language_data_analysis %>%
+  summarise(mean = mean(logit), 
+            sd = sd(logit))
+
+ggplot(language_data_analysis, aes(x = logit)) +
+  geom_histogram(binwidth = 0.5)
+
+
+```
+The distribution of logit, is roughly normal with the mean of 2.678788	and standard deviation of 0.9277099. Since the distribution is not too skewed we will use central limit theorem for further analysis based on mean. in terms of other conditions for central limit theorem (Other than normal sample distribution), Sample size is important and it requires to be large enough (more than 30), Which is the case in this study.
+
+#####
+
+As the first inferential analysis, since the given data is a sample of the whole population, here I wanted to know what is the mean of the population’s “logit” With 95% confidence interval.
+
+
+```{r}
+#inferences 1.1 
+#Foundations for statistical inference - Confidence intervals
+
+
+z_star_95 <- qnorm(0.975)
+z_star_95
+
+
+
+language_data_analysis %>%
+  summarise(x_bar = mean(logit),
+            sd = sd(logit),
+            n = n(),
+            se = sd(logit) / sqrt(n),
+            me = z_star_95 * se,
+            lower = x_bar - me,
+            upper = x_bar + me)
+
+
+
+```
+The mean of the populations logit is between (2.675716, 2.681859) with 95% CI. 
+
+#######
+
+To answer Question 1: Does living in an English-speaking country result in more proficiency In English test?, first and EDA is done regarding the differences between the mean od logits for two different group of people who lived in an English speaking country and people who didn't.
+
+```{r}
+
+language_data_analysis %>%
+  group_by(english_country_lived) %>%
+  summarise(xbar = mean(logit),
+            s = sd(logit), 
+            n = n())
+
+
+ggplot(language_data_analysis, aes(x = english_country_lived, y = logit)) + 
+  geom_boxplot()
+
+```
+Based on above boxplot, it is shown that in this sample people who lived in an English speaking country has a higher logit mean compared to people who didn't. however to get inferences about the population, the hypothesis test should be done either with sampling and sampling simulation or with a T test.
+
+H0: there is not a difference between the mean of logit between people who lived and those who did not live in an English speaking country.
+HA: there is a difference between the mean of logit between people who lived and those who did not live in an English speaking country. 
+```{r}
+
+t.test(logit~english_country_lived, data = language_data_analysis)
+
+
+
+
+#People_lived <- language_data_analysis %>% 
+#  filter(english_country_lived == "Lived") 
+
+#People_not_lived <- language_data_analysis %>% 
+#  filter(english_country_lived == "Did not live") 
+
+
+#Lived_mean <- People_lived %>%
+#  summarise(mu = mean(correct)) %>%
+#  pull(mu)
+
+#not_Lived_mean <- People_not_lived %>%
+#  summarise(mu = mean(correct)) %>%
+#  pull(mu)
+
+
+#empirical_diff <- Lived_mean - not_Lived_mean
+#empirical_diff
+
+
+
+
+
+
+#diff_main <- language_data_analysis %>%
+#  group_by(english_country_lived) %>%
+#  summarise(mean = mean(correct)) %>%
+#  ungroup() %>%
+#  summarise(diff = first(mean) - last(mean))
+
+
+#diff_main
+
+
+
+
+
+```
+based on the T-test result, the differences of the meand with 95 percent confidence interval falls within (-0.4765164 -0.4638510), since This range does not include zero then we have enough evidence to reject the null hypothesis in favor of alternative hypothesis.  
+
+#####
+
+To answer the Question 2: does the time when participants started learning English (in which decade of their life), make a difference in how well they did in the English test?, Since here are multiple categories such as different decades, the ANOVA or F-test is used. 
+
+H0:logit means do not vary across decades
+HA:logit means vary across decades
+
+I want to look at the english proficiency test results (logit)  in each decade. I want a histogram for each one. The standard ggplot way to do this is with facets, but that has a ton of white space and is hard to process. I'll use a geom_density_ridges instead.
+
+```{r density-plot, fig.width = 4, fig.height = 8}
+
+
+order <- language_data_analysis %>%
+  group_by(english_start_categorical) %>%
+  summarise(logit = mean(logit)) %>%
+  arrange(logit)
+
+order
+
+# I want to arrange the decade categories on my plot by their mean logit. To do this, I need to make a factor. A factor is like a string but it can have non-alphabetical orders.
+ordered_data <- language_data_analysis %>%
+  mutate(english_start_categorical = factor(english_start_categorical, levels = pull(order, english_start_categorical)))
+
+ordered_data
+
+# Make a ggridges plot so we can see all of the decades
+ggplot(ordered_data, aes(x = logit, y = english_start_categorical, 
+                      fill = english_start_categorical, color = english_start_categorical)) + 
+  geom_density_ridges(stat = "binline", binwidth = 0.1, draw_baseline = FALSE) + 
+  scale_x_continuous(breaks =seq(0, 100, 20)) +
+  labs(y = "") + 
+  theme_ridges(grid = FALSE, font_size = 14) +
+  theme(legend.position = "none") # don't display the color legend. it's redundant
+```
+There clearly is a difference between the logit means of different decade categories in this sample. 
+Let's look at just 3 decades to understand what ANOVA is doing
+
+```{r three-cultures, warning = FALSE, message = FALSE}
+three_categories <- language_data_analysis %>%
+  filter(english_start_categorical %in% c("First Decade", "Fourth Decade", "Seventh Decade"))
+
+
+grand_mean <- three_categories %>%
+  summarise(logit = mean(logit)) %>%
+  pull()
+
+group_means <- three_categories %>%
+  group_by(english_start_categorical) %>%
+  summarise(logit = mean(logit)) 
+
+
+ggplot(three_categories, aes(x = logit, fill = english_start_categorical, color = english_start_categorical)) + 
+  facet_wrap(~ english_start_categorical) +
+  geom_dotplot() + 
+  coord_flip() + 
+  scale_fill_brewer(palette = "Set1") + 
+  scale_color_brewer(palette = "Set1") + 
+  geom_vline(aes(xintercept = grand_mean), linetype = "dashed", size = 1.2) +
+  geom_vline(aes(xintercept = logit, color = english_start_categorical), size = 2,
+             data = group_means)
+```
+
+
+Plot the F-distribution we'll use
+```{r fdist, fig.width = 6, fig.height = 3.5}
+df1 <- language_data_analysis %>% 
+  distinct(english_start_categorical) %>%
+  nrow() - 1
+
+df2 <- nrow(language_data_analysis) - df1 -1 
+
+fdist <- tibble(score = seq(0,5,.01),
+                density = df(seq(0,5,.01), df1, df2))
+
+ggplot(fdist, aes(x = score, y = density)) +
+  geom_line()
+```
+
+
+Use ANOVA to determine if logit means vary across decades 
+```{r culture-anova}
+english_start_categorical_anova <- aov(logit ~ english_start_categorical, data = language_data_analysis)
+
+summary(english_start_categorical_anova)
+```
+
+Let's pull the f-value out of this analysis. I'll use the `tidy` function from the `broom` package which will give me back a tibble version of that same output
+```{r f-value}
+tidy_english_start_categorical_anova <- english_start_categorical_anova %>%
+  tidy()
+
+tidy_english_start_categorical_anova
+
+f_val <- tidy_english_start_categorical_anova %>% 
+  filter(term == "english_start_categorical") %>% 
+  pull(statistic)
+```
+
+Let's see where our data fall on the f-distribution
+```{r fval-on-dist}
+ggplot(fdist, aes(x = score, y = density)) +
+  geom_line() +
+  geom_vline(aes(xintercept = f_val), color = "#bb0000") + 
+  geom_vline(aes(xintercept = qf(.975, 15, 459)), color = "#666666") +
+  geom_vline(aes(xintercept = qf(.025, 15, 459)), color = "#666666")
+```
+Since the F_value  is very small and the data line falls out of the F-distribution range, then we can reject the null hypothesis in favor of alternative hypothesis
+
+######
+Based on the analysis results so far it is clear that first decade they'd better in English tests compared to the 6thth decade which is the last one. Now I wanted to know in each decade category, what percent or proportion of people had lived in an English speaking country. To do so just the first decade and the last decade (the 6th) is selected For the comparison. the aim is to see whether there is a difference between the confidence interval for the proportion in each of these two categories.
+
+```{r}
+
+
+First_Decade <- language_data_analysis %>%
+  filter(english_start_categorical == "First Decade")
+
+Sixth_Decade <- language_data_analysis %>%
+  filter(english_start_categorical == "Sixth Decade")
+
+
+
+
+
+First_Decade_prop <- First_Decade %>%
+  summarise(First_Decade_lived_prop = mean(english_country_lived == "Lived")) %>%
+  pull()
+
+z_star <- qnorm(.975) #The 97.5% percentile of the normal distribution
+
+se <- sqrt((First_Decade_prop * (1 - First_Decade_prop)) / nrow(First_Decade)) #the formula for the standard error
+
+me <- se * z_star # margin of error is standard error times critical value
+
+First_Decade_ci_95 <- c(First_Decade_prop - me, First_Decade_prop + me)
+
+First_Decade_ci_95
+
+
+
+
+
+Sixth_Decade_prop <- Sixth_Decade %>%
+  summarise(Sixth_Decade_lived_prop = mean(english_country_lived == "Lived")) %>%
+  pull()
+
+z_star <- qnorm(.975) #The 97.5% percentile of the normal distribution
+
+se <- sqrt((Sixth_Decade_prop * (1 - Sixth_Decade_prop)) / nrow(Sixth_Decade)) #the formula for the standard error
+
+me <- se * z_star # margin of error is standard error times critical value
+
+Sixth_Decade_ci_95 <- c(Sixth_Decade_prop - me, Sixth_Decade_prop + me)
+
+Sixth_Decade_ci_95
+
+
+
+```
+with 95% confidence interval, the proportion of people lived in an English speaking country from the first decade category falls between (0.3912355 0.3956212)
+with 95% confidence interval, the proportion of people lived in an English speaking country from the first decade category falls between (0.3912355 0.3956212)
+
+* * *
+
+### Modeling
+
+In this section to answer to the question 3: does spending more time in an English speaking country would result in a higher score in the English test? I want to know whether there is a relation between the time spent leaving in an English speaking country and the logit (proficiency in English). to do so as simple regression model is built here.
+
+H0: there is not a relationship between Proportion_YearsLived_EnglishCountry and logit
+HA: there is a relationship between Proportion_YearsLived_EnglishCountry and logit
+
+
+```{r}
+#hala tu regression mitunm bepirsim ke cheghadr kharej budaneshun dar tule omreshun tasir dare?
+ggplot(language_data_analysis, aes(x = Proportion_YearsLived_EnglishCountry, y = logit)) +
+  geom_jitter(width = .1, height = .3) +
+  geom_smooth(method = "lm", se = FALSE)
+#try geom_hex, this looks better
+#play with geom_jitter(width = .1, height = .3)
+
+language_data_analysis %>%
+  summarise(cor = cor(logit, Proportion_YearsLived_EnglishCountry)) %>%
+  pull()
+
+```
+
+```{r}
+m1 <- lm(logit ~ Proportion_YearsLived_EnglishCountry, data = language_data_analysis)
+summary(m1)
+
+```
+
+Since the slope is not zero and it's larger than zero, then there is a positive relationship between the Proportion_YearsLived_EnglishCountry and logit. Based on the blue line their relationship it's not that strong but it is positive. the correlation is 0.2585014, the slope is 0.947321, and the intercept is 2.573996. also the P-value is very small. 
+Hence the simple regression  formula would be:
+ logit = 2.573996   + 947321*Proportion_YearsLived_EnglishCountry
+
+However in order to use this formula for predictions, first we need to check if the conditions for the simple regression has been met. 
+
+```{r}
+#play with geom_jitter(width = .1, height = .3)
+
+m1_residuals <- tibble(x = nrow(language_data_analysis),
+                       fitted = fitted(m1), 
+                       resid = residuals(m1))
+
+ggplot(m1_residuals, aes(x = fitted, y = resid)) + 
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+
+
+
+```
+
+```{r}
+
+
+ggplot(m1_residuals, aes(x = resid)) + 
+  geom_histogram(binwidth = 0.2) +
+  xlab("Residuals")
+
+
+
+```
+The first condition to use the simple regression is linearity Which the first model showed a clear linear relationship between logic and Proportion_YearsLived_EnglishCountry
+The second one is normality of the distribution of the residuals. the distribution about also clearly showed the normality.
+the third one is constant variability of residuals however the plot for that Didn't show a clear constant variability of residuals it seems roughly constant. 
+so generally we may want to use this simple regression model for further predictions.
+
+```{r}
+predict(m1, newdata = tibble(Proportion_YearsLived_EnglishCountry = 0.025))
+
+empirical_value <- filter(language_data_analysis, Proportion_YearsLived_EnglishCountry == 0.025) %>%
+  pull(logit)
+
+empirical_value
+```
+
+
+Although previous simple regression analysis showed Proportion_YearsLived_EnglishCountry has a linear relation with logit, now I want to know what are the other factors that has this relation with logit. Since I created multiple columns based on the ones that are already there in the language_data_analysis data set, I wanted to first create a GG pairs plot, to see whether there is a correlation between those two, so that I can delete the ones with high correlation to make it ready for the multiple regression model. 
+```{r}
+
+#based on above plot, I only selected corr :
+language_data_analysis %>%
+  select(english_start, age, english_country_years, Proportion_YearsLived_EnglishCountry) %>%
+  ggpairs()
+
+
+
+```
+
+
+Based on the analysis so far, for the multiple regression, the following data is selected: education + gender + age + Proportion_YearsLived_EnglishCountry + english_start_categorical
+
+```{r}
+
+#begu motanaseb ba WWWW, and I know my data, inaro negah dashtam va vase hamin chiziam kam nashod bade stepwise regression.
+
+
+lm_full <- lm(logit ~ education + gender + age + Proportion_YearsLived_EnglishCountry 
+             + english_start_categorical, data = language_data_analysis)
+
+summary(lm_full)
+```
+some of the inferences are for example men scored 0.17 less in English proficiency test compared to women. 
+In terms of English start categories, the reference level is 5th decade, so orders should be compared to the 5th decade for example, people who started English in their first decade, scored 1.2983131 higher in English proficiency test compared to people who started learning English in their 5th decade. also people who started learning English in their 6th decade, scored 0.1003 list in English proficiency test compared to 5th decade. 
+ 
+also we see that in previous linear model the intercept was 2.573996, but now the intercept is 1.2827980 which shows the effect of added factors and the colinearity. 
+
+overal the formula woud be:
+
+Logit = 1.2827980 + (-0.0739895 * high school degree) + (-0.2237434* complete highschool) + (-0.0868706* some graduate) + (0.0282368* some undergraduate) + (0.0474204* undergraduate degree) + (-0.1718650* gendermale) + (0.0076892* age) + …. 
+For example if in future predictions the gender is female, in the above formula for the gender male we will put 0, if it is male we will put 1.  
+
+
+```{r}
+lm_step <- step(lm_full)
+
+```
+Backward Stepwise regression is also done here to remove any factor that is not that relevant or important in predicting the logit, however after the end results it is obviously shown that the remaining factors are all important.
+
+* * *
+
+### Conclusion
+
+Finally we can conclude that in terms of the three main questions, people who started learning English in early stages of his or her life has better proficiency in English. proficiency in English is also higher among the people who have had lived in an English speaking country. moreover people who has spent a larger proportion of his or her life in an English speaking country has better proficiency in it. also proficiency in English is related to other factors such as the education level, age, and  gender. 
