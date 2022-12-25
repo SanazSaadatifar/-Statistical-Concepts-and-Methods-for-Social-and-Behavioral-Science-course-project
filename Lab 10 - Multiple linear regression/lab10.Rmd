@@ -1,0 +1,188 @@
+
+---
+title: "Lab 10 - Multiple Linear Regression"
+author: "Sanaz Saadatifar"
+date: "Date of lab session"
+output: 
+  html_document: 
+    highlight: tango
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(GGally)
+```
+
+* * *
+
+## Lab report
+
+**Load data**
+```{r load-data}
+evals <- read_csv("https://dyurovsky.github.io/85309/data/lab10/evals.csv")
+```
+
+#### Exercise 1:
+
+this is an observational study because beauty was not randomly assigned to professors. As a result, we can't make a causal claim from this data. A better way of phrasing this research question would be to say something like “is there an association between beauty and course ratings?”
+
+
+#### Exercise 2: 
+```{r}
+ggplot(evals, aes(x = score)) +
+  geom_histogram()
+```
+The distribution of scores look unimodal and left-skewed. most scores are high rather than in the middle. Maybe this is surprising if we expect most courses to be average. But maybe people either really like their courses on the whole or maybe feel bad about giving bad scores
+
+#### Exercise 3: 
+```{r}
+ggplot(evals, aes(x = bty_avg, y = score)) + 
+  geom_point()
+
+ggplot(evals, aes(x = bty_avg, y = score)) + 
+  geom_jitter()
+```
+What was misleading about the original plot is that the points were stacked on top of each other (called overplotting). Geom_jiter fixes this by moving the points by a small random amount.
+
+#### Exercise 4: 
+```{r}
+m_bty <- lm(score~bty_avg, data=evals)
+summary(m_bty)
+```
+Score = 0.066*bty_avg + 3.88
+In this model, bty_avg is there reliable predictor because its P value is a small.
+exchange of 0.066 in score for each point of bty_avg might or might not be practically significant.
+it seems small relative to the variability in score, but it might matter in some kind of evaluation.
+
+#### Exercise 5: 
+```{r}
+ggplot(evals, aes(x = bty_avg, y = score)) + 
+  geom_jitter() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+mbty_residuals <- tibble(x = nrow(evals),
+                       fitted = fitted(m_bty), 
+                       resid = residuals(m_bty))
+
+#linearity #constant variability
+ggplot(mbty_residuals, aes(x = fitted, y = resid)) + 
+  geom_jitter() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+
+#Normal residuals
+ggplot(mbty_residuals, aes(x = resid)) + 
+  geom_histogram() +
+  xlab("Residuals")
+
+
+```
+The normal residuals condition appears to be violated the residuals are left skewed. the other two conditions look pretty OK the residuals don't have an obvious pattern and appear roughly constant variance (although maybe a little bit less at the high end of the range).
+
+#### Exercise 6:
+```{r}
+ggplot(evals, aes(x = bty_f1lower, y = bty_avg)) + 
+  geom_point()
+
+evals %>%
+  summarise(cor = cor(bty_avg, bty_f1lower)) %>%
+  pull()
+
+evals %>%
+  select(contains("bty")) %>%
+  ggpairs()
+
+m_bty_gen <- lm(score ~ bty_avg + gender, data = evals)
+
+
+m_bty_gen_residuals <- tibble(x = nrow(evals),
+                       fitted = fitted(m_bty_gen), 
+                       resid = residuals(m_bty_gen))
+
+#linearity #constant variability
+ggplot(m_bty_gen_residuals, aes(x = fitted, y = resid)) + 
+  geom_jitter() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+
+#Normal residuals
+ggplot(m_bty_gen_residuals, aes(x = resid)) + 
+  geom_histogram() +
+  xlab("Residuals")
+
+
+
+
+
+#summary(m_bty_gen)
+```
+Normality is again violated the distribution of residuals is left skewed. this time there is also a stronger violation of constant variability. it looks like there is more variability in the middle part of the range than on the edges.
+
+#### Exercise 7:
+```{r}
+summary(m_bty_gen)
+```
+Yes, beauty average is this still a reliable predictor as the P values are small for both gender and beauty average. including gender in the model did change its estimate though.
+
+#### Exercise 8: 
+
+Score = 3.91 + .074*bty_avg   for males
+Score = 3.74 + .074*bty_avg   for females
+
+This model says that men get better ratings on average, holding beauty constant.
+
+#### Exercise 9:
+```{r}
+m_bty_rank <- lm(score ~ bty_avg + rank , data = evals)
+summary(m_bty_rank)
+```
+We have turned these tree levels of one this variable into two separate binary variables. The intercept is there non tenure track is going. Because of that we can compare each of these two (tenure track and tenured) two non tenure track because that is what the reference category is, but we cannot compare them with each other. The numbers show that tenure track and tenured professors are doing worse compared to the not tenure track ones. But because of the way that model is set up we cannot compare the tenure track with tenured.
+
+#### Exercise 10:
+```{r}
+m_full <- lm(score ~ rank + ethnicity + gender + language + age + cls_perc_eval 
+             + cls_students + cls_level + cls_profs + cls_credits + bty_avg 
+             + pic_outfit + pic_color, data = evals)
+
+summary(m_full)
+```
+Ethnicity has two categories, nonminority and minority. The reference category is minority. All else being equal non minority professors R rated on average 0.12 points higher than minority professors. If we want to look to the P value it is not that small so overall ethnicity white not be a very good variable to include in the model for prediction of perfessor rates.
+
+#### Exercise 11:
+```{r}
+m_full <- lm(score ~ rank + ethnicity + gender + language + age + cls_perc_eval 
+             + cls_students + cls_level + cls_credits + bty_avg 
+             + pic_outfit + pic_color, data = evals)
+
+summary(m_full)
+```
+the coefficients and significance of the other explanatory variables slightly changed, the changes are very small so we can ignore it and we can consider that as no change.  so because it is considered as no change then the dropped variable was not collinear with the other explanatory variables because the correlation is not significant. 
+
+#### Exercise 12:
+```{r}
+lm_all <- lm(score ~ . , data = evals)
+
+#summary(lm_all)
+lm_step <- step(lm_all)
+```
+the final model is "score ~ rank + ethnicity + gender + language + age + cls_perc_eval + cls_credits + bty_f1lower + bty_f1upper + bty_f2upper + bty_avg + pic_outfit + pic_color"
+
+```{r}
+Linear_Final_Model <- lm(score ~ rank + ethnicity + gender + language + age + cls_perc_eval 
+             + bty_f1upper + cls_credits + bty_avg + bty_f2upper 
+             + pic_outfit + pic_color + bty_f1lower , data = evals)
+
+summary(Linear_Final_Model)
+```
+ linear model for predicting score based on the final model:
+score = 4.087168 - 0.184119* ranktenure track - 0.079796* ranktenured + 0.156156* ethnicitynot minority + 0.254929* gendermale - 0.228479* languagenon-english - 0.009130* age + 0.004470* cls_perc_eval + 0.079899* bty_f1upper + 0.502732* cls_creditsone credit - 0.140359* bty_avg + 0.058486* bty_f2upper - 0.100300* pic_outfitnot formal - 0.205474* pic_colorcolor + 0.038838* bty_f1lower
+
+#### Exercise 13:
+
+All else being equal, in terms of classes, one credit classes (lab, PE, etc.) and classes with high percent of students in class who completed evaluation are scored higher. In terms of professor, the professors being non-tenure track (teaching), not minority, male, non-English, younger, having black & white picture, and wearing formal outfits are scored higher. 
