@@ -1,0 +1,148 @@
+
+---
+title: "Lab 5 - Hypothesis Testing"
+author: "Your name"
+date: "Date of lab session"
+output: 
+  html_document: 
+    highlight: tango
+    theme: spacelab
+---
+
+```{r setup, include = FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+* * *
+
+## Lab report
+
+**Load data**
+```{r load_data, message = FALSE}
+curry_data <- read_csv("https://dyurovsky.github.io/85309/data/lab5/curry_data.csv")
+```
+
+
+#### Exercise 1: 
+```{r}
+mean_shooting_prob <- curry_data %>%
+  summarise(mean = mean(SHOT_MADE)) %>%
+  pull()
+
+sd_shooting_prob <- curry_data %>%
+  summarise(mean = sd(SHOT_MADE)) %>%
+  pull()
+
+by_game_data <- curry_data %>%
+  group_by(GAME_ID) %>%
+  summarise(shooting_prob = mean(SHOT_MADE),
+            sd = sd(SHOT_MADE))
+
+ggplot(by_game_data, aes(x = shooting_prob)) +
+  geom_histogram(bins = 15) +
+  geom_vline(aes(xintercept = mean_shooting_prob), color = "gold", size = 2)
+
+```
+The distribution looks roughly normal and symmetric. The mean is around .5, and the the spread is pretty broad--there look to be games where Steph makes around 60-70% of his shots, and also games where he makes 30%
+
+#### Exercise 2:
+H0: percent of shots made after making a shot is not different from the percent of shots made after missing a shot
+HA: percent of shots made after making a shot is different from the percent of shots made after missing a shot
+
+#### Exercise 3:
+I don't want the first shot of a game to count as coming after the last shot of the previous game--I want to throw it out from my analysis and not count is as a shot after a missed shot or a made shot
+
+#### Exercise 4:
+```{r}
+lag_data <- curry_data %>%
+  group_by(GAME_ID) %>%
+  mutate(lag_shot = lag(SHOT_MADE))
+
+eda_hothands <- lag_data %>%
+  group_by(lag_shot) %>%
+  summarise(shooting_prob = mean(SHOT_MADE))
+
+eda_hothands
+```
+This data doesn't look consistent with the hot hands hypothesis because Steph is *less* likely to make a shot after he made his last shot relative to missing his last shot. The NA values tell me about the first shot in the game that Steph takes.
+
+#### Exercise 5:
+```{r}
+# Number of shots taken after shots that were made
+hot_shots <- lag_data %>%
+  filter(lag_shot) %>%
+  nrow() # count the number of rows
+
+# Number of shots made after shots that were made
+hot_made <- lag_data %>%
+  filter(lag_shot & SHOT_MADE) %>%
+  nrow()
+
+# Number of shots taken after shots that were missed
+not_shots <- lag_data %>%
+  filter(!lag_shot) %>%
+  nrow()
+
+# Number of shots made after shots that were missed
+not_made <- lag_data %>%
+  filter(!lag_shot & SHOT_MADE) %>%
+  nrow()
+
+simulate_null <- function() {
+
+  # Make a list with the right number of shots of each type
+  shots <- c(rep("Hot", hot_shots), rep("Not", not_shots))
+  
+  # randomly select the made shots from this list
+  made <- sample(shots, hot_made + not_made) 
+  
+  # Compute the difference shot success between hot and not shots
+  random_hot_made <- sum(made == "Hot") / hot_shots
+  random_not_made <- sum(made == "Not") / not_shots
+  
+  random_hot_made - random_not_made
+}
+
+simulate_null()
+
+null_diffs <- tibble(sample = 1:1000, 
+                     diff = replicate(1000, simulate_null()))
+
+
+empirical_diff <- (hot_made / hot_shots) - (not_made / not_shots)
+empirical_diff
+
+ggplot(null_diffs, aes(x = diff)) + 
+  geom_histogram() +
+  geom_vline(aes(xintercept = empirical_diff), color = "gold", size = 2)
+```
+It's hard to tell exactly from the plot, but it looks like Steph might be reliably worse after he made his last shot. So maybe some evidence for cold hands.
+
+
+### More practice:
+
+#### Exercise 6:
+```{r}
+mean(empirical_diff > pull(null_diffs, diff))
+```
+The empirical data fall at around the 2nd percentile, which suggests that we should reject the null hypothesis (because the data are in the bottom 2.5% percent of the null distribution). But it's pretty borderline.
+
+
+
+
+
+#### Exercise 7:
+
+```{r}
+# enter your code for Exercise 7 here
+```
+
+#### Exercise 8:
+
+```{r}
+# enter your code for Exercise 8 here
+```
+
+#### Exercise 9:
