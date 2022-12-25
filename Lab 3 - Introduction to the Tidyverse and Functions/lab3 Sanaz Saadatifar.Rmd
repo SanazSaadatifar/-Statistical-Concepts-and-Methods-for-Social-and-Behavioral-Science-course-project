@@ -1,0 +1,150 @@
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+* * *
+
+## Lab report
+
+**Load data**
+```{r load_data}
+wordbank <- read_csv("https://dyurovsky.github.io/85309/data/lab3/wordbank.csv")
+```
+
+#### Exercise 1: 
+there are 677 words and 22 categories in the form. the category with the most words is action_words with 103 words in it. 
+```{r exercise-1}
+# enter your code for Exercise 1 here
+words_count <- wordbank %>%
+  distinct(word)%>%
+  summarise(n=n())
+
+categories_count <- wordbank %>%
+  distinct(category)%>%
+  summarise(n=n())
+
+
+categories_most_words <- wordbank %>%
+  group_by(category) %>%
+  distinct(word) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+words_count
+categories_count
+categories_most_words
+
+
+```
+
+#### Exercise 2:
+A word easier than tiger to learn is “baa baa”, since more people knows it in each age (specially in earlier ages) compared to “tiger” and “Smile”. And “Smile” is the hardest to learn compared to “tiger” since less kids know it in each age. 
+
+```{r exercise-2}
+# enter your code for Exercise 2 here
+words_selected <- wordbank %>%
+  filter(word %in% c("tiger","baa baa","smile")) %>%
+  group_by(age, word) %>%
+  summarise(knows = mean(knows))
+
+ggplot(words_selected, aes(x = age, y = knows, color = word)) + 
+  geom_point() +
+  geom_line()
+```
+
+#### Exercise 3:
+The hardest word is “country” because it has the lowest prob (or mean of kids who knows it at different ages), and the easiest words is “mommy” because it has the highest prob (or mean of kids who knows it at different ages). “mommy’ makes sense because moms are the closet ones to children, but I’d expect to see another word as the hardest than “country”. The reason might be that children at those ages are not familiar with the context of countries, etc.
+
+```{r exercise-3}
+# enter your code for Exercise 3 here
+word_difficulty <- wordbank %>%
+  group_by(word, age)%>%
+  summarise(S = mean(knows)) %>%
+  summarise(prop = mean(S)) %>%
+  arrange(desc(prop))
+
+
+
+word_difficulty
+```
+
+#### Exercise 4:
+the 19 months old child’s hardest word is “sister” and the 30 months old child’s hardest word is “snowsuit”, which generally makes sense, because “snowsuit" is a harder word than “sister”, and it is understandable that the 19 months old child des not now “snowsuit" while the 30 months old child does.  
+
+```{r exercise-4}
+# try printing this out to see what left_join did
+wordbank_difficulty <- left_join(wordbank, word_difficulty, by = "word")
+
+hardest_word <- function(child) {
+  word_tibble <- wordbank_difficulty %>%
+    filter(id == child, knows == TRUE) %>%
+    arrange(prop)
+  # enter your code for Exercise 4 here and uncomment the pipe above
+  
+  word_tibble %>%
+    pull(word) %>%
+    first() # get the first word if there are multiple
+}
+
+hardest_word("129277")
+hardest_word("129579")
+```
+
+* * *
+
+### More practice:
+
+#### Exercise 5:
+Yes, that is true, because at each age, more girls know more words than boys considering the higher rate of knows for girls than boys. 
+
+```{r exercise-5}
+# enter your code for Exercise 5 here
+words_selected <- wordbank %>%
+  group_by(age, gender) %>%
+  summarise(knows = mean(knows))
+
+ggplot(words_selected, aes(x = age, y = knows, color = gender)) + 
+  geom_point() +
+  geom_line()
+```
+
+#### Exercise 6:
+Yes, there are children who knows all the words, and the youngest is 131265, who is a 25 months old kid. In this result, it is shown that there are children who know 680 words however based on the exercise 1, we have less than 680 words. The reason is that some words might be used in multiple categories. 
+```{r exercise-6}
+# enter your code for Exercise 6 here
+kids_count <- wordbank %>%
+  group_by(id, age) %>%
+  summarise(knowa = sum(knows))%>%
+  ungroup()%>%
+  filter(knowa == max(knowa)) %>%
+  arrange(age)
+
+
+
+kids_count 
+
+
+```
+
+
+
+#### Exercise 7:
+The youngest child who knows “wish” is a  19 months old kid. 
+
+```{r exercise-7}
+# enter your code for Exercise 7 here
+youngest_age <- function(child_word) {
+  word_tibble2 <- wordbank %>%
+    filter(word == child_word, knows == TRUE) %>%
+    arrange(age)
+  # enter your code for Exercise 4 here and uncomment the pipe above
+  
+  word_tibble2 %>%
+    pull(age) %>%
+    first() # get the first word if there are multiple
+}
+youngest_age("wish")
+```
+
