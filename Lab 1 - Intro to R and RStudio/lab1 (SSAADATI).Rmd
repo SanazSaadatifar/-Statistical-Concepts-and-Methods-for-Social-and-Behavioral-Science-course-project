@@ -1,0 +1,114 @@
+
+---
+title: "Lab 1 - Intro to R and RStudio"
+author: "Sanaz Saadatifar"
+date: "1/29/2022"
+output: 
+  html_document: 
+    highlight: tango
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+* * *
+
+## Lab report
+
+**Load Arbuthnot data**
+```{r}
+arbuthnot <- read_csv("https://dyurovsky.github.io/85309/data/lab1/arbuthnot.csv")
+```
+
+#### Exercise 1: 
+the first line of code is what is required for the exercise 1. I intentionally added the second line of code for boys because I need it to answer the exercise 5.
+```{r}
+# code for Exercise 1 is already entered below as an example
+arbuthnot$girls
+arbuthnot$boys
+```
+
+#### Exercise 2:
+
+[Enter your response for Exercise 2 here.]
+In general more girls are baptized each year, except the dip between the year 1640 to year 1660. 
+
+```{r}
+# enter your code for Exercise 2 here
+ggplot(arbuthnot, aes(x = year, y = girls)) +
+  geom_point() +
+  geom_line()
+```
+
+#### Exercise 3:
+The ratio of the boys goes up and down a little bit from year to year, but it does not change significantly.  
+```{r}
+# enter your code for Exercise 3 here
+arbuthnot <- arbuthnot %>%
+  mutate(total = boys + girls) %>%
+  mutate(boy_ratio = boys / total)
+
+ggplot(arbuthnot, aes(x = year, y = boy_ratio)) +
+  geom_point() +
+  geom_line()
+```
+
+* * *
+
+### On your own:
+
+**Load present day data**
+```{r}
+present <- read_csv("https://dyurovsky.github.io/85309/data/lab1/present.csv")
+```
+
+#### 4:
+Year 1940 to year 2015 (76 years) are included in this data, as listed below. 
+Dimensions of the tibble are Rows: 76 Columns: 3.
+variable (column) names are year, boys, girls. 
+
+```{r}
+# enter your code for Exercise 4 here
+present$year
+```
+
+#### 5:
+The Arbuthnot and present in terms of the years, in which data is collected for both , are completely different. However, to compare the Counts of girls and boys in the present data set with Arbuthnot, it is possible to conclude that the number of boys and girls are growing (like a thousand time). Because during the Arbuthnot’s time, the counts had about 4 digits, but in present data, the counts have about 7 digits. 
+```{r}
+# enter your code for Exercise 5 here
+present$girls
+present$boys
+```
+
+
+#### 6:
+•	Although the boys-ratio is decreasing in the US based on  data from 1940 to 2015, still the number of boys being born each year is greater than number of girls being born in the same year. 
+•	Arbuthnot’s observation about the boy ratio was partially similar to the present’s data (in terms of boy-ratio > 0.5 ), but that didn’t have a descending order. However, overall we cannot directly relate these two data sets to each other and infer that the reason for having more boys being baptized in 1940 to 2015 is the higher number of boys being born compared to girls. And the main reason for this is not having population-born data from 1940 to 2015. 
+
+```{r}
+# enter your code for Exercise 6 here
+present <- present %>%
+  mutate(total = boys + girls) %>%
+  mutate(boy_ratio = boys / total)
+
+ggplot(present, aes(x = year, y = boy_ratio)) +
+  geom_point() +
+  geom_line()
+```
+
+
+#### 7:
+2007 is the year with the most total number of births in the U.S. (4316233).
+```{r}
+# enter your code for Exercise 7 here
+present %>%
+  arrange(desc(total))
+
+```
+
+
+* * *
