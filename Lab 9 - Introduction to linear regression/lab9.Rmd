@@ -1,0 +1,237 @@
+
+---
+title: "Lab 9 - Introduction to Linear Regression"
+author: "Sanaz Saadatifar"
+date: "4/5"
+output: 
+  html_document: 
+    highlight: tango
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+# DO NOT ALTER CODE IN THIS CHUNK
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+* * *
+
+## Lab report
+
+**Load data**
+```{r load-data}
+load(url("https://dyurovsky.github.io/85309/data/lab9/mlb11.RData"))
+```
+
+#### Exercise 1: 
+```{r}
+ggplot(mlb11, aes(x = at_bats, y = runs)) +
+  geom_point()
+
+mlb11 %>%
+  summarise(cor = cor(runs, at_bats)) %>%
+  pull()
+```
+To look at the relationship between two numeric variables we can use a scatter plot. Based on this plot of at-bats versus runs, I would feel pretty good using a linear model to predict runs from at-bats.the relationship looks roughly linear and moderately strong.
+
+#### Exercise 2:
+
+the relationship looks approximately linear and positive more at bats leads to more runs. The relationship is moderately strong, and there does appear to be one unusual point with a moderate at bats but a high number of runs the New York Yankees.
+
+#### Exercise 3: 
+```{r ex3, eval = FALSE}
+plot_ss(mlb11, x = at_bats, y = runs)
+```
+The smallest sum of square I got was 123721.9.others also got a similar range.
+
+#### Exercise 4: 
+```{r}
+m1 <- lm(runs ~ at_bats, data = mlb11)
+summary(m1)
+
+m2 <- lm(runs ~ homeruns, data = mlb11)
+summary(m2)
+```
+Runs = 415.24 + 1.83*homeruns
+this means that for every home runs a team scores, they score about 1.83 total runs.
+
+
+#### Exercise 5: 
+```{r}
+ggplot(mlb11, aes(x = at_bats, y = runs)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+#predicted_5579 <- -2789.2429 + 0.6305 * 5579
+#predicted_5579
+
+predict(m1, newdata = tibble(at_bats = 5579))
+empirical_value <- filter(mlb11, at_bats == 5579) %>%
+  pull(runs)
+empirical_value
+```
+the model predictive value is 728.5955, the true value is 713, so this is an overestimate.
+
+#### Exercise 6:
+
+```{r}
+m1_residuals <- tibble(x = nrow(mlb11),
+                       fitted = fitted(m1), 
+                       resid = residuals(m1))
+
+ggplot(m1_residuals, aes(x = fitted, y = resid)) + 
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+```
+because there is no obvious pattern in the residuals over the range of predicted values, we think it's OK to assume a linear relationship
+
+#### Exercise 7:
+```{r}
+ggplot(m1_residuals, aes(x = resid)) + 
+  geom_histogram(binwidth = 50) +
+  xlab("Residuals")
+```
+the residuals don't look too skewed, and most of the residuals are near the center of the distribution. So it's probably OK to assume they are nearly normal.
+
+#### Exercise 8: 
+
+eyeballing the variability of residuals in the plot for exercise 6, we see that they look roughly constant over the range.
+
+### More Practice
+```{r}
+
+```
+
+#### Exercise 9:
+```{r}
+ggplot(mlb11, aes(x = hits, y = runs)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+m_hits <- lm(runs ~ hits, data = mlb11)
+summary(m_hits)
+
+```
+the relationship between hits and runs looks strongly and positively linear more hits resulting more runs.
+
+#### Exercise 10:
+
+based on the code results from exercise 9 for hits and exercise 4 for at-bats we can see that R squared for at-bats is 37.29% while R squared  for hits is 64.19% we can conclude that hits’s model due to having a higher R squared provides us with better prediction for runs compared to the at-bats because a higher proportion of variance of runs is explained by the hits model.
+
+#### Exercise 11:
+```{r}
+#ggplot(mlb11, aes(x = homeruns, y = runs)) +
+#  geom_point() +
+#  geom_smooth(method = "lm", se = FALSE)
+
+
+#m_homeruns <- lm(runs ~ homeruns, data = mlb11)
+#summary(m_homeruns)
+
+
+
+ggplot(mlb11, aes(x = bat_avg, y = runs)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+m_bat_avg <- lm(runs ~ bat_avg, data = mlb11)
+summary(m_bat_avg)
+
+
+
+
+#ggplot(mlb11, aes(x = strikeouts, y = runs)) +
+#  geom_point() +
+#  geom_smooth(method = "lm", se = FALSE)
+
+
+#m_strikeouts <- lm(runs ~ strikeouts, data = mlb11)
+#summary(m_strikeouts)
+
+
+
+#ggplot(mlb11, aes(x = stolen_bases, y = runs)) +
+#  geom_point() +
+#  geom_smooth(method = "lm", se = FALSE)
+
+
+#m_stolen_bases <- lm(runs ~ stolen_bases, data = mlb11)
+#summary(m_stolen_bases)
+
+
+
+#ggplot(mlb11, aes(x = wins, y = runs)) +
+#  geom_point() +
+#  geom_smooth(method = "lm", se = FALSE)
+
+
+#m_wins <- lm(runs ~ wins, data = mlb11)
+#summary(m_wins)
+
+
+
+```
+Bat_avg best describes and predicts runs because it has very strong and positive linear relationship with runs and also compared to the other variables it has the highest r ^2 which is 65.61%
+
+#### Exercise 12:
+```{r}
+ggplot(mlb11, aes(x = new_onbase, y = runs)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+m_new_onbase <- lm(runs ~ new_onbase, data = mlb11)
+summary(m_new_onbase)
+
+
+
+
+ggplot(mlb11, aes(x = new_slug, y = runs)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+m_new_slug <- lm(runs ~ new_slug, data = mlb11)
+summary(m_new_slug)
+
+
+
+
+
+ggplot(mlb11, aes(x = new_obs, y = runs)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+m_new_obs <- lm(runs ~ new_obs, data = mlb11)
+summary(m_new_obs)
+
+
+```
+overall the new variables are more efficient and better in predicting the runs compared to ditional 7 valuables. because they all have strong positive linearity compared to the previous seven ones and also there R squares have much higher value compared to the previous ones. between these three new_obs is the best because it has a higher r ^2 , 93.49% , compared to the other two. But overall it makes sense because apparently the new variables are created based on the traditional seven variables so probably the values that we're not that efficient in prediction of run's are not included a new ones.
+
+#### Exercise 13:
+```{r}
+m_new_obs_residuals <- tibble(x = nrow(mlb11),
+                       fitted = fitted(m_new_obs), 
+                       resid = residuals(m_new_obs))
+
+ggplot(m_new_obs_residuals, aes(x = fitted, y = resid)) + 
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+
+
+ggplot(m_new_obs_residuals, aes(x = resid)) + 
+  geom_histogram(binwidth = 25) +
+  xlab("Residuals")
+```
+because there is no obvious pattern in the residuals over the range of predicted values, we think it's OK to assume a linear relationship
+the residuals don't look too skewed, and most of the residuals are near the center of the distribution. So it's probably OK to assume they are nearly normal.
+eyeballing the variability of residuals in the plot, we see that they look roughly constant over the range
